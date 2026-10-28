@@ -218,3 +218,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# tiny-coder
+.env
+playground/
+logs/
+

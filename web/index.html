@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tiny-coder</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --panel: #ffffff; --text: #1d1d1b; --muted: #6b6b66; --line: #e3e2dc;
+    --accent: #2f6f4f; --warn: #a15c00; --bad: #b3261e; --code: #f1f0ec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161615; --panel: #1f1f1d; --text: #ecebe6; --muted: #9a9993; --line: #33332f;
+      --accent: #6cc196; --warn: #e3a24a; --bad: #f2867f; --code: #2a2a27;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { padding: 16px 24px; border-bottom: 1px solid var(--line); display: flex; gap: 12px; align-items: baseline; }
+  header h1 { margin: 0; font-size: 18px; }
+  header span { color: var(--muted); font-size: 13px; }
+  main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px 24px; }
+  @media (max-width: 860px) { main { grid-template-columns: 1fr; padding: 16px; } }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0; }
+  h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  textarea { width: 100%; min-height: 64px; padding: 10px; border: 1px solid var(--line); border-radius: 8px;
+             background: var(--bg); color: var(--text); font: inherit; resize: vertical; }
+  .row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; align-items: center; }
+  button, select { font: inherit; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--line);
+                   background: var(--panel); color: var(--text); cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+  button.danger { color: var(--bad); }
+  button:disabled { opacity: .5; cursor: default; }
+  #log { margin-top: 14px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+  .ev { padding: 6px 10px; border-left: 3px solid var(--line); overflow-wrap: anywhere; }
+  .ev.tool_call { border-color: var(--accent); font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
+  .ev.tool_result { color: var(--muted); font-family: ui-monospace, Consolas, monospace; font-size: 12px; white-space: pre-wrap; }
+  .ev.denied, .ev.error, .ev.stopped { border-color: var(--bad); color: var(--bad); }
+  .ev.final { border-color: var(--accent); background: var(--code); border-radius: 0 8px 8px 0; }
+  .ev.summary { color: var(--muted); font-size: 13px; }
+  .tag { font-size: 11px; padding: 1px 6px; border-radius: 4px; border: 1px solid currentColor; margin-left: 6px; }
+  #approval { display: none; margin-top: 14px; border: 2px solid var(--warn); border-radius: 10px; padding: 12px; }
+  #approval b { color: var(--warn); }
+  pre { background: var(--code); padding: 10px; border-radius: 8px; overflow: auto; max-height: 360px;
+        font: 12.5px/1.45 ui-monospace, Consolas, monospace; margin: 8px 0; }
+  .file { margin-bottom: 12px; }
+  .file div { font-family: ui-monospace, Consolas, monospace; font-size: 13px; font-weight: 600; }
+</style>
+</head>
+<body>
+<header>
+  <h1>tiny-coder</h1>
+  <span id="model">a minimal coding agent: reads, fixes, tests — and asks before it writes</span>
+</header>
+<main>
+  <section>
+    <h2>Task</h2>
+    <textarea id="task">The tests are failing. Find the bug and fix it.</textarea>
+    <div class="row">
+      <button class="primary" id="run">Run agent</button>
+      <select id="config" title="Eval configuration">
+        <option value="solve-with-test-loop">solve with test loop</option>
+        <option value="solve-no-test-loop">solve with no test loop</option>
+      </select>
+      <button id="reset" title="Restore playground/ from demo/">Reset project</button>
+    </div>
+    <div id="approval">
+      <b>Approval needed:</b> <span id="ap-what"></span>
+      <pre id="ap-content"></pre>
+      <div class="row">
+        <button class="primary" id="yes">Approve</button>
+        <button class="danger" id="no">Reject</button>
+      </div>
+    </div>
+    <div id="log"></div>
+  </section>
+  <section>
+    <h2>Project files (playground/)</h2>
+    <div id="files"></div>
+  </section>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const post = (url, body) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
+                                           body: JSON.stringify(body || {}) });
+  let seen = 0, wasRunning = false;
+
+  function line(kind, html) {
+    const el = document.createElement("div");
+    el.className = "ev " + kind;
+    el.innerHTML = html;
+    $("log").appendChild(el);
+  }
+  const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+
+  function render(ev) {
+    const d = ev.data;
+    if (ev.kind === "user") line("user", "<b>You:</b> " + esc(d));
+    else if (ev.kind === "thought") line("thought", esc(d));
+    else if (ev.kind === "tool_call") {
+      const args = Object.entries(d.args).map(([k, v]) => `${k}=${esc(String(v).slice(0, 40))}`).join(", ");
+      line("tool_call", `→ ${esc(d.name)}(${args})<span class="tag">${d.decision}</span>`);
+    }
+    else if (ev.kind === "tool_result") line("tool_result", esc(d.output.split("\n").slice(0, 6).join("\n")));
+    else if (ev.kind === "final") line("final", "<b>Agent:</b> " + esc(d));
+    else line(ev.kind, `<b>${ev.kind}:</b> ${esc(d)}`);
+  }
+
+  async function loadFiles() {
+    const files = await (await fetch("/api/files")).json();
+    $("files").innerHTML = Object.entries(files).map(([name, text]) =>
+      `<div class="file"><div>${esc(name)}</div><pre>${esc(text)}</pre></div>`).join("");
+  }
+
+  async function poll() {
+    const s = await (await fetch("/api/state")).json();
+    $("model").textContent = "model: " + s.model;
+    s.events.slice(seen).forEach(render);
+    seen = s.events.length;
+    $("run").disabled = s.running; $("reset").disabled = s.running;
+    $("approval").style.display = s.pending ? "block" : "none";
+    if (s.pending) {
+      $("ap-what").textContent = `${s.pending.name} → ${s.pending.args.path || ""}`;
+      $("ap-content").textContent = s.pending.args.content || "";
+    }
+    if (wasRunning && !s.running) loadFiles();
+    wasRunning = s.running;
+  }
+
+  $("run").onclick = async () => {
+    $("log").innerHTML = ""; seen = 0;
+    await post("/api/run", { task: $("task").value, config: $("config").value });
+  };
+  $("yes").onclick = () => post("/api/approve", { ok: true });
+  $("no").onclick = () => post("/api/approve", { ok: false });
+  $("reset").onclick = async () => { await post("/api/reset"); $("log").innerHTML = ""; seen = 0; loadFiles(); };
+
+  loadFiles();
+  setInterval(poll, 700);
+</script>
+</body>
+</html>
