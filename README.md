@@ -17,9 +17,9 @@
 | 1 | 3+ tools, one over MCP | `list_files`, `read_file`, `write_file` over MCP ([workspace_server.py](workspace_server.py)); `run_tests`, `save_note` local ([agent.py](agent.py) §3) |
 | 2 | Context file | [AGENTS.md](AGENTS.md), loaded as the system prompt (`system_prompt()` in [agent.py](agent.py) §2) |
 | 2 | Memory | `save_note` → `NOTES.md` in the project, injected into the next run's prompt |
-| 2 | Compaction / budget rule | `clip()` caps every tool result at 3,000 chars ([agent.py:58](agent.py#L58), used at [:250](agent.py#L250)); `compact()` keeps only the last 4 results in full ([agent.py:66](agent.py#L66), used at [:251](agent.py#L251)); memory capped at 2,000 chars ([agent.py:54](agent.py#L54)) |
+| 2 | Compaction / budget rule | `clip()` caps every tool result at 3,000 chars ([agent.py:58](agent.py#L58), used at [:255](agent.py#L255)); `compact()` keeps only the last 4 results in full ([agent.py:66](agent.py#L66), used at [:256](agent.py#L256)); memory capped at 2,000 chars ([agent.py:54](agent.py#L54)) |
 | 3 | Approval on a write | `policy()` in [agent.py](agent.py) §4: `write_file` = **ask**, test files = **deny**, reads = allow |
-| 3 | Step and cost budgets | `MAX_STEPS=12`, `MAX_TOKENS=80k`, `MAX_COST_USD=0.05` per task, `MAX_OUTPUT_TOKENS=4096` per reply (defined [agent.py:35-38](agent.py#L35-L38), enforced [agent.py:219-224](agent.py#L219-L224)) |
+| 3 | Step and cost budgets | `MAX_STEPS=12`, `MAX_TOKENS=80k`, `MAX_COST_USD=0.05` per task, `MAX_OUTPUT_TOKENS=4096` per reply (defined [agent.py:35-38](agent.py#L35-L38), enforced [agent.py:224-229](agent.py#L224-L229)) |
 | 4 | 15+ eval tasks, 2 configs, error analysis | [evals/tasks.jsonl](evals/tasks.jsonl) + [evals.py](evals.py); results in [results/](results/) |
 | 5 | Trifecta, one attack, one defence | [Security note](#security-note) below; defence = path jail in [workspace_server.py](workspace_server.py) |
 | + | Logs / traces | `logs/audit.jsonl` (every tool call + decision), `results/transcripts/` (every eval run) |

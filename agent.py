@@ -152,10 +152,13 @@ def call_model(client: OpenAI, messages: list, tools: list):
     errors = []
     for model in filter(None, [MODEL, FALLBACK_MODEL]):
         try:
-            return client.chat.completions.create(
+            resp = client.chat.completions.create(
                 model=model, messages=messages, tools=tools, max_tokens=MAX_OUTPUT_TOKENS,
                 extra_body={"usage": {"include": True}})  # OpenRouter reports cost
-        except Exception as e:  # rate limit, no credits, model gone, ...
+            if not resp.choices:  # OpenRouter can return 200 with an error body and no answer
+                raise RuntimeError(f"empty reply: {getattr(resp, 'error', None) or 'no choices'}")
+            return resp
+        except Exception as e:  # rate limit, no credits, model gone, empty reply, ...
             errors.append(f"{model}: {e}")
             audit(event="model_error", model=model, error=str(e)[:300])
     raise RuntimeError(" | ".join(errors))
