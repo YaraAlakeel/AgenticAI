@@ -10,6 +10,18 @@
   [Advanced Agentic AI Systems Engineering - SDAIA Academy](https://github.com/sdaiaacademy/agentic-ai/)
 - **Model:** `openai/gpt-4.1-nano` via OpenRouter
 
+## Contents
+1. [Requirements checklist](#requirements-checklist)
+2. [What we are trying to solve](#what-we-are-trying-to-solve)
+3. [How to run](#how-to-run)
+4. [Key concepts](#key-concepts)
+5. [Design across the ladder](#design-across-the-ladder)
+6. [Tools](#tools)
+7. [Evaluation](#evaluation): [configurations](#what-the-two-configurations-mean), [results](#results), [error analysis](#error-analysis)
+8. [Security note](#security-note)
+9. [Limitations and next steps](#limitations-and-next-steps)
+10. [Project layout](#project-layout)
+
 ## Requirements checklist
 
 | # | Requirement | Where |
