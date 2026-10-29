@@ -5,9 +5,9 @@
 > any file**.
 
 - **Track:** 2 — Your harness (a coding harness, built from scratch in ~300 lines of Python)
-- **Author:** Yara Alakeel (individual)
-- **Course:** capstone project for the SDAIA Academy *Agentic AI Systems Engineering* course:
-  [github.com/SDAIAAcademy/agentic-ai](https://github.com/SDAIAAcademy/agentic-ai)
+- **Author:** Yara Alakeel 
+- **Course:** capstone project for
+  [Advanced Agentic AI Systems Engineering - SDAIA Academy](https://github.com/sdaiaacademy/agentic-ai/)
 - **Model:** `openai/gpt-4.1-nano` via OpenRouter
 
 ## Requirements checklist
